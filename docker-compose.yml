@@ -1,9 +1,30 @@
 version: "3.9"
 services:
   backend:
+    container_name: backend
+    restart: always
+    command: yarn start
     build:
         context: .
+    depends_on:
+      - mongo
+    networks:
+      - mongo-net
     ports:
-      - "3000:3000"
-  redis:
-    image: "redis:alpine"
+      - 3000:3000
+    volumes:
+      - .:/app/
+      - /app/node_modules
+  mongo:
+    container_name: mongo
+    image: mongo
+    restart: always
+    networks:
+      - mongo-net
+    expose:
+      - 27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+networks:
+  mongo-net:
