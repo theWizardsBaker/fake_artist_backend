@@ -1,8 +1,8 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import randomstring from "randomstring";
 import { MongoClient } from "mongodb";
+import { loadCategories } from "./category.js"
 
 const app = express();
 const httpServer = createServer(app);
@@ -12,17 +12,21 @@ const io = new Server(httpServer, {
 	}
 });
 
+// load categories from CSV file
+loadCategories();
+
 app.get('/', (req, res) => {
     res.json({ AGAIN: true })
 });
 
-io.on("connection", async (socket) => {
+io.on("connection", (socket) => {
   socket.on('game:find', () => {
+
   	socket.emit('game_found')
   });
 
   socket.on('game:create', () => {
-  	const gameKey = randomstring(5)
+
 
   });
   // {
