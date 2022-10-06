@@ -3,7 +3,9 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { connect } from "./database.js";
 import Category from "./models/category.js"
-
+import {
+  findGameLobby
+} from "./lobby.js"
 // setup express
 const app = express();
 const httpServer = createServer(app);
@@ -24,25 +26,21 @@ connect()
 });
 // basic landing page
 app.get('/', async (req, res) => {
-    console.log(await Category.findRandomCategory())
     res.send("Server is up")
 });
 // setup socket.io
 io.on("connection", (socket) => {
-  socket.on('game:find', () => {
-
-  	socket.emit('game_found')
+  socket.on('game:join', async (gameId) => {
+      const lobby = await findGameLobby(gameId)
+      if(!lobby){
+        socket.emit('game_not_found')
+      }
   });
 
   socket.on('game:create', () => {
-
+    // socket.join(gameKey.toUpperCase());
   });
-  // {
-  //   id: 6,
-  //   name: "Jeanne",
-  //   color: "#ffffff",
-  //   isReady: true,
-  // },
+
   socket.on('lobby:join', () => {
   	console.log('join lobby')
   });

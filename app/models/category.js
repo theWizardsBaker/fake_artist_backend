@@ -16,12 +16,16 @@ const CategorySchema = new Schema({
 }, {
 	statics: {
 		async findRandomCategory() {
-			// Get the count of all users
-			const count = await this.count()
-			// Get a random number
-			const random = Math.floor(Math.random() * count)
-			// find random category
-			return await this.findOne().skip(random)
+			try {
+				// Get the count of all users
+				const count = await this.count()
+				// Get a random number
+				const random = Math.floor(Math.random() * count)
+				// find random category
+				return await this.findOne().skip(random)
+			} catch(e) {
+				console.log(`unable to find Random Category:\n\t${e}`)
+			}
 		},
 
 		async loadCategories() {
@@ -40,6 +44,6 @@ const CategorySchema = new Schema({
 			}
 		},
 	}
-});
+})
 
-export default mongoose.model('Category', CategorySchema);
+export default mongoose.model('Category', CategorySchema)

@@ -35,7 +35,21 @@ const LobbySchema = new Schema({
 		type: mongoose.ObjectId,
 		ref: Player 
 	} ],
+	inProgress: {
+		type: Boolean,
+		default: true
+	},
 	createdAt: { type: Date, expires: 3600, default: Date.now }
+}, {
+	statics: {
+		async findRoom(roomId) {
+			try {
+				return await this.findOne({ room: roomId, inProgress: true })
+			} catch(e) {
+				return null
+			}
+		}
+	}
 });
 
 export default mongoose.model('Lobby', LobbySchema);
