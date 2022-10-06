@@ -15,6 +15,10 @@ services:
     volumes:
       - .:/app/
       - /app/node_modules
+    environment:
+      USERNAME: root
+      PASSWORD: example
+      DATABASE: fake-artist
   mongo:
     container_name: mongo
     image: mongo
@@ -23,8 +27,11 @@ services:
       - mongo-net
     expose:
       - 27017
+    ports: 
+      - 27017:27017
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: fake-artist
 networks:
   mongo-net:

@@ -1,24 +1,33 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { MongoClient } from "mongodb";
-import { loadCategories } from "./category.js"
+import { connect } from "./database.js";
+import Category from "./models/category.js"
 
+// setup express
 const app = express();
 const httpServer = createServer(app);
+// setup socket.io
 const io = new Server(httpServer, { 
   cors: {
 		origin: '*'
 	}
 });
-
+// setup mongodb
+connect()
 // load categories from CSV file
-loadCategories();
-
-app.get('/', (req, res) => {
-    res.json({ AGAIN: true })
+.then(() => Category.loadCategories())
+// exit if connection fails
+.catch(() => {
+  console.log("could not establish a connection. Exiting");
+  process.exit(0);
 });
-
+// basic landing page
+app.get('/', async (req, res) => {
+    console.log(await Category.findRandomCategory())
+    res.send("Server is up")
+});
+// setup socket.io
 io.on("connection", (socket) => {
   socket.on('game:find', () => {
 
@@ -26,7 +35,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on('game:create', () => {
-
 
   });
   // {
