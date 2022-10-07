@@ -22,9 +22,9 @@ const CategorySchema = new Schema({
 				// Get a random number
 				const random = Math.floor(Math.random() * count)
 				// find random category
-				return await this.findOne().skip(random)
+				return await this.findOne().skip(random).exec()
 			} catch(e) {
-				console.log(`unable to find Random Category:\n\t${e}`)
+				return new Error(`unable to find Random Category:\n\t${e}`)
 			}
 		},
 

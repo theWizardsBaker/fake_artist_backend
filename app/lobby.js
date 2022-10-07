@@ -1,29 +1,25 @@
-import randomstring from "randomstring";
-import Lobby from "./models/lobby.js";
+import randomstring from "randomstring"
+import Lobby from "./models/lobby.js"
 import Category from "./models/category.js"
 
-const getColors = async () => {
-	const colors = await readCSVFile("./data/colors.csv")
-	return categoryItems.map(c => ({ color: c[0], disabled: false }))
-}
-
-export const createGameLobby = async () => {
-  	const gameKey = randomstring(5)
+export const createGameLobby = async (timeLimit = 0) => {
+  	const roomId = await Lobby.getUniqueRoomId()
     const category = await Category.findRandomCategory()
-    const colors = await getColors()
+    const colors = await Lobby.getColors()
+    // create lobby
   	const lobby = new Lobby({
-  		room: gameKey,
+  		room: roomId,
   		game: {
-  			timeLimit: 15,
+  			timeLimit: timeLimit,
   			category: category 
   		},
-  		colors: colors,
-  		players: []
+  		colors: colors.map(c => ({ color: c[0], disabled: false })),
   	})
+  	// save lobby
+  	await lobby.save()
+  	return roomId
 }
 
 export const findGameLobby = async (gameId) => {
-  	const room = await Lobby.findRoom(gameId)
-  	console.log(room)
-  	return room
+  	return await Lobby.findRoom(gameId)
 }
