@@ -2,10 +2,9 @@ version: "3.9"
 services:
   backend:
     container_name: backend
-    restart: always
-    command: yarn start
+    command: "dev"
     build:
-        context: .
+      context: .
     depends_on:
       - mongo
     networks:
@@ -13,9 +12,10 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - .:/app/
-      - /app/node_modules
+      - ./app:/var/www/http/app
     environment:
+      PORT: 3000
+      FRONT_END_URL: "http://localhost:5173"
       USERNAME: root
       PASSWORD: example
       DATABASE: fake-artist
@@ -25,8 +25,6 @@ services:
     restart: always
     networks:
       - mongo-net
-    expose:
-      - 27017
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example

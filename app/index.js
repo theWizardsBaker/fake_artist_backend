@@ -12,7 +12,7 @@ const httpServer = createServer(app);
 // setup socket.io
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: process.env.FRONT_END_URL,
   },
 });
 
@@ -28,7 +28,7 @@ connect()
 
 // basic landing page
 app.get("/", async (req, res) => {
-  res.send("Server is up");
+  res.send("Server is ready to accept requests");
 });
 
 // find existing user
@@ -107,4 +107,4 @@ io.on("connection", (socket) => {
   });
 });
 
-httpServer.listen(3000);
+httpServer.listen(process.env.PORT);
