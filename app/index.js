@@ -3,7 +3,8 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { connect } from "./database.js";
 import Category from "./models/category.js";
-import { findGameLobby, createGameLobby } from "./lobby.js";
+import { getGameLobby, createGameLobby } from "./lobby.js";
+import { createPlayer, filterPlayer } from "./player.js";
 
 // setup express
 const app = express();
@@ -12,7 +13,9 @@ const httpServer = createServer(app);
 // setup socket.io
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONT_END_URL,
+    origin: process.env.FRONTEND_URL,
+    methods: ["GET", "POST"],
+    credentials: true
   },
 });
 
@@ -32,41 +35,43 @@ app.get("/", async (req, res) => {
 });
 
 // find existing user
-io.use(async (socket, next) => {
-  const sessionID = socket.handshake.auth.sessionID;
-  console.log(socket.handshake);
-  if (sessionID) {
-    console.log("SESSION EXISTS");
-    // const session = await sessionStore.findSession(sessionID)
-    // if (session) {
-    //   socket.sessionID = sessionID
-    //   socket.userID = session.userID
-    //   socket.username = session.username
-    //   return next()
-    // }
-  }
-  console.log("SESSION DOES NOT EXIST");
-  // const username = socket.handshake.auth.username
-  // if (!username) {
-  //   return next(new Error("invalid username"))
-  // }
-  // socket.sessionID = randomId()
-  // socket.userID = randomId()
-  // socket.username = username
-  next();
-});
-
+// io.use(async (socket, next) => {
+//   const sessionID = socket.handshake.auth.sessionID;
+//   if (sessionID) {
+//     console.log("SESSION EXISTS");
+//     // const session = await sessionStore.findSession(sessionID)
+//     // if (session) {
+//     //   socket.sessionID = sessionID
+//     //   socket.userID = session.userID
+//     //   socket.username = session.username
+//     //   return next()
+//     // }
+//   }
+//   console.log("SESSION DOES NOT EXIST");
+//   // const username = socket.handshake.auth.username
+//   // if (!username) {
+//   //   return next(new Error("invalid username"))
+//   // }
+//   // socket.sessionID = randomId()
+//   // socket.userID = randomId()
+//   // socket.username = username
+//   next();
+// });
 
 // setup socket.io
 io.on("connection", (socket) => {
-  console.log("SOCKET LISTENING");
 
-  const getCurrentLobby = () => {
-    return Object.keys(socket.rooms())[0];
+  socket.on("connect_error", (err) => {
+    console.log(`connect_error due to ${err.message}`);
+  });
+
+  const getCurrentRoom = () => {
+    const rooms = Object.keys(socket.rooms);
+    return rooms[0];
   }
 
-  const leaveCurrentLobby = () => {
-    return socket.leave(getCurrentLobby());
+  const leaveCurrentRoom = () => {
+    return socket.leave(getCurrentRoom());
   }
 
   // create a new lobby
@@ -84,7 +89,7 @@ io.on("connection", (socket) => {
   socket.on("lobby:find", async (lobbyId) => {
     try {
       // try to find lobby
-      const gameLobby = await findGameLobby(lobbyId);
+      const gameLobby = await getGameLobby(lobbyId);
       // emit joined
       socket.emit("success:lobby_found", gameLobby.room);
     } catch (e) {
@@ -93,18 +98,41 @@ io.on("connection", (socket) => {
   });
 
   // join lobby
-  socket.on("lobby:join", async (lobbyId) => {
+  socket.on("lobby:join", async ({lobby, playerName, isSpectator}) => {
     try {
-      // try to find lobby
-      const gameLobby = await findGameLobby(lobbyId);
-      // find if we're already in a current lobby, leave it
-      if(gameLobby.room && getCurrentLobby()) { leaveCurrentLobby(); }
+      // make sure lobby exists
+      let gameLobby = await getGameLobby(lobby);
+      // if we're already in a lobby, leave it
+      if(gameLobby.room && getCurrentRoom()) { leaveCurrentRoom(); }
+
+      // create a new player
+      const player = await createPlayer({
+        lobby: gameLobby,
+        name: playerName,
+        spectator: isSpectator
+      })
+
+      // add player to game
+      gameLobby.players.push(player);
+      
+      await gameLobby.save();
+
       // join lobby
       socket.join(gameLobby.room);
+      
       // emit joined
-      socket.emit("success:lobby_joined", gameLobby.players);
+      socket.emit("success:lobby_joined", {
+        room: gameLobby.room,
+        colors: gameLobby.colors,
+        players: gameLobby.players.map(p => filterPlayer(p))
+      });
+
+      // notify the rest of the room
+      socket.to(gameLobby.room).emit("player:added", player);
+
     } catch (e) {
-      socket.emit("error:lobby_joined", `${lobbyId} does not exist`);
+      console.log(e)
+      socket.emit("error:lobby_joined", `${lobby} does not exist`);
     }
   });
 
@@ -112,7 +140,7 @@ io.on("connection", (socket) => {
   socket.on("colors:get", async (lobbyId) => {
     try {
       get
-      const gameLobby = await findGameLobby(lobbyId);
+      const gameLobby = await getGameLobby(lobbyId);
       // emit joined
       socket.emit("success:colors_get", gameLobby.colors );
     } catch (e) {
@@ -123,8 +151,8 @@ io.on("connection", (socket) => {
   // update player's color
   socket.on("colors:update", async (selectedColor) => {
     try {
-      const currentLobby = getCurrentLobby();
-      const gameLobby = await findGameLobby(currentLobby);
+      const currentLobby = getCurrentRoom();
+      const gameLobby = await getGameLobby(currentLobby);
       socket.to(currentLobby).emit("success:colors_updated")
     } catch (e) {
       socket.emit("error:colors_updated", e);

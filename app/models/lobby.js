@@ -25,7 +25,7 @@ const LobbySchema = new Schema(
         min: 0,
       },
       category: {
-        type: mongoose.ObjectId,
+        type: Schema.ObjectId,
         required: true,
         ref: Cateogry,
       },
@@ -42,20 +42,21 @@ const LobbySchema = new Schema(
     ],
     players: [
       {
-        type: mongoose.ObjectId,
+        type: Schema.ObjectId,
         ref: Player,
       },
     ],
     open: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     createdAt: { type: Date, expires: 3600, default: Date.now },
   },
   {
     statics: {
+
       async findRoom(roomId) {
-        return await this.findOne({ room: roomId, open: true });
+        return await this.findOne({ room: roomId, open: true }).populate('players');
       },
 
       async getUniqueRoomId() {
@@ -72,6 +73,7 @@ const LobbySchema = new Schema(
       async getColors() {
         return await readCSVFile("./data/colors.csv");
       },
+
     },
   }
 );

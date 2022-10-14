@@ -15,7 +15,7 @@ services:
       - ./app:/var/www/http/app
     environment:
       PORT: 3000
-      FRONT_END_URL: "http://localhost:5173"
+      FRONTEND_URL: "http://localhost:5173"
       USERNAME: root
       PASSWORD: example
       DATABASE: fake-artist

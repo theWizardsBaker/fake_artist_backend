@@ -16,10 +16,9 @@ export const createGameLobby = async (timeLimit = 0) => {
     colors: colors.map((c) => ({ color: c[0], disabled: false })),
   });
   // save lobby
-  await lobby.save();
-  return lobby;
+  return await lobby.save();
 };
 
-export const findGameLobby = async (gameId) => {
+export const getGameLobby = async (gameId) => {
   return await Lobby.findRoom(gameId);
 };
