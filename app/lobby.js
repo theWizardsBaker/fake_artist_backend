@@ -17,7 +17,7 @@ export const createGameLobby = async (timeLimit = 0) => {
   });
   // save lobby
   await lobby.save();
-  return roomId;
+  return lobby;
 };
 
 export const findGameLobby = async (gameId) => {

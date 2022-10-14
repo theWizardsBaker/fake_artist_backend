@@ -56,38 +56,81 @@ io.use(async (socket, next) => {
   next();
 });
 
+
 // setup socket.io
 io.on("connection", (socket) => {
   console.log("SOCKET LISTENING");
 
-  // if user is already in a game, join it
-  if (false) {
-    // join the "userID" room
-    socket.join(socket.userID);
+  const getCurrentLobby = () => {
+    return Object.keys(socket.rooms())[0];
   }
 
-  socket.on("lobby:join", async (gameId) => {
+  const leaveCurrentLobby = () => {
+    return socket.leave(getCurrentLobby());
+  }
+
+  // create a new lobby
+  socket.on("lobby:create", async (timeLimit) => {
     try {
-      // try to find lobby
-      const lobby = await findGameLobby(gameId);
-      if (!lobby) {
-        throw "error";
-      }
-      socket.emit("success:lobby_joined", lobby.room);
+      const gameLobby = await createGameLobby(timeLimit);
+      // emit joined
+      socket.emit("success:lobby_created", gameLobby.room);
     } catch (e) {
-      socket.emit("error:game_not_found", `${gameId} does not exist`);
+      socket.emit("error:lobby_created", e);
     }
   });
 
-  socket.on("game:create", async (timeLimit) => {
+  // find lobby
+  socket.on("lobby:find", async (lobbyId) => {
     try {
-      const room = await createGameLobby(timeLimit);
-      socket.emit("success:lobby_joined", room);
+      // try to find lobby
+      const gameLobby = await findGameLobby(lobbyId);
+      // emit joined
+      socket.emit("success:lobby_found", gameLobby.room);
     } catch (e) {
-      socket.emit("game_create_error", e);
-      return;
+      socket.emit("error:lobby_found", `${lobbyId} does not exist`);
     }
   });
+
+  // join lobby
+  socket.on("lobby:join", async (lobbyId) => {
+    try {
+      // try to find lobby
+      const gameLobby = await findGameLobby(lobbyId);
+      // find if we're already in a current lobby, leave it
+      if(gameLobby.room && getCurrentLobby()) { leaveCurrentLobby(); }
+      // join lobby
+      socket.join(gameLobby.room);
+      // emit joined
+      socket.emit("success:lobby_joined", gameLobby.players);
+    } catch (e) {
+      socket.emit("error:lobby_joined", `${lobbyId} does not exist`);
+    }
+  });
+
+  // get available colors
+  socket.on("colors:get", async (lobbyId) => {
+    try {
+      get
+      const gameLobby = await findGameLobby(lobbyId);
+      // emit joined
+      socket.emit("success:colors_get", gameLobby.colors );
+    } catch (e) {
+      socket.emit("error:colors_get", `${lobbyId} does not exist`);
+    }
+  });
+
+  // update player's color
+  socket.on("colors:update", async (selectedColor) => {
+    try {
+      const currentLobby = getCurrentLobby();
+      const gameLobby = await findGameLobby(currentLobby);
+      socket.to(currentLobby).emit("success:colors_updated")
+    } catch (e) {
+      socket.emit("error:colors_updated", e);
+    }
+  });
+
 
   // notify users upon disconnection
   socket.on("disconnect", async () => {
