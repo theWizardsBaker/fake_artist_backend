@@ -66,8 +66,7 @@ io.on("connection", (socket) => {
   });
 
   const getCurrentRoom = () => {
-    const rooms = Object.keys(socket.rooms);
-    return rooms[0];
+    return [...socket.rooms][0];
   }
 
   const leaveCurrentRoom = () => {
@@ -102,11 +101,15 @@ io.on("connection", (socket) => {
     try {
       // make sure lobby exists
       let gameLobby = await getGameLobby(lobby);
+
+      if(!gameLobby) { throw(lobby) }
+
       // if we're already in a lobby, leave it
       if(gameLobby.room && getCurrentRoom()) { leaveCurrentRoom(); }
 
       // create a new player
       const player = await createPlayer({
+        id: gameLobby.players.length + 1,
         lobby: gameLobby,
         name: playerName,
         spectator: isSpectator
@@ -136,29 +139,64 @@ io.on("connection", (socket) => {
     }
   });
 
-  // get available colors
-  socket.on("colors:get", async (lobbyId) => {
-    try {
-      get
-      const gameLobby = await getGameLobby(lobbyId);
-      // emit joined
-      socket.emit("success:colors_get", gameLobby.colors );
-    } catch (e) {
-      socket.emit("error:colors_get", `${lobbyId} does not exist`);
+  // when player leaves
+  socket.on("lobby:quit", async () => {
+    const room = getCurrentRoom();
+    if(room){
+      // leave the current room
+      leaveCurrentRoom();
+      // tell room
+      socket.to(room).emit("success:player_quit");
     }
+    // tell client
+    socket.emit("success:lobby_quit");
   });
 
   // update player's color
-  socket.on("colors:update", async (selectedColor) => {
+  socket.on("colors:update", async ({newColor, oldColor}) => {
     try {
-      const currentLobby = getCurrentRoom();
-      const gameLobby = await getGameLobby(currentLobby);
-      socket.to(currentLobby).emit("success:colors_updated")
+      const gameLobby = await getGameLobby(getCurrentRoom());
+      if(!gameLobby){ throw("Game Lobby not found") }
+
+      let colorAlreadySelected = false;
+      // find color
+      for(let i = 0; i < gameLobby.colors.length; i++ ) {
+        // find the current color
+        let c = gameLobby.colors[i];
+        console.log(c, gameLobby.colors, gameLobby.colors[0])
+        // check the new color pick
+        if(c.color === newColor) {
+          // make sure this color isn't selected
+          if(c.disabled) {
+            colorAlreadySelected = true;
+            break;
+          } else {
+            c.disabled = true;
+          }
+        }
+        // enable old color
+        if(c.color === oldColor){
+          c.disabled = false;
+        }
+      }
+
+      // if color is found
+      if(colorAlreadySelected){
+        // send client the updated list of colors
+        socket.emit("failed:colors_updated", gameLobby.colors);
+        return;
+      }
+
+      await gameLobby.save();
+
+      // respond to all users
+      io.in(gameLobby.room).emit("success:colors_updated", gameLobby.colors);
+
     } catch (e) {
+      console.log(e)
       socket.emit("error:colors_updated", e);
     }
   });
-
 
   // notify users upon disconnection
   socket.on("disconnect", async () => {
