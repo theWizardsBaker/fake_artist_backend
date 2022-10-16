@@ -42,25 +42,28 @@ const LobbySchema = new Schema(
     ],
     players: [
       {
-        type: Schema.ObjectId,
-        ref: Player,
+        type: Schema.Types.ObjectId,
+        ref: "Player",
       },
     ],
     open: {
       type: Boolean,
       default: true,
     },
-    createdAt: { type: Date, expires: 3600, default: Date.now },
+    createdAt: { type: Date, expires: 3600, default: Date.now, select: false },
   },
   {
     statics: {
-
       async findRoom(roomId) {
-        return await this.findOne({ room: roomId, open: true }).populate('players');
+        return await this.findOne({ room: roomId, open: true }).populate(
+          "players"
+        );
       },
 
       async getUniqueRoomId() {
-        const roomId = randomstring.generate(5).toUpperCase();
+        const roomId = randomstring
+          .generate({ length: 5, readable: true })
+          .toUpperCase();
         // check that the room does not already exist
         if (await this.exists({ room: roomId })) {
           // keep trying to find a unique key (should almost never happen)
@@ -73,7 +76,6 @@ const LobbySchema = new Schema(
       async getColors() {
         return await readCSVFile("./data/colors.csv");
       },
-
     },
   }
 );

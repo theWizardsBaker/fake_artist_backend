@@ -8,6 +8,9 @@ const database = "fake-artist";
 export const connect = () => {
   return new Promise(async (resolve, reject) => {
     try {
+      mongoose.set("debug", (collectionName, method, query, doc) => {
+        console.log(`${collectionName}.${method}`, JSON.stringify(query), doc);
+      });
       await mongoose.connect(`mongodb://${server}:${port}/${database}`, {
         user: "root",
         pass: "example",

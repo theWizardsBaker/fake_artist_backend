@@ -1,4 +1,3 @@
-import randomstring from "randomstring";
 import Lobby from "./models/lobby.js";
 import Category from "./models/category.js";
 
@@ -20,5 +19,7 @@ export const createGameLobby = async (timeLimit = 0) => {
 };
 
 export const getGameLobby = async (gameId) => {
-  return await Lobby.findRoom(gameId);
+  return await Lobby.findRoom(gameId.toUpperCase());
 };
+
+export const updateColorSwatches = () => {};
