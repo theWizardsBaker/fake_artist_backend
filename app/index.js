@@ -9,7 +9,7 @@ import {
   getPlayer,
   updatePlayerColor,
   findPlayerByColor,
-  updatePlayerReady,
+  deletePlayer,
 } from "./player.js";
 
 // setup express
@@ -70,6 +70,7 @@ io.use((socket, next) => {
   };
 
   socket.leaveCurrentRoom = () => {
+    socket.playerId = null;
     return socket.leave(socket.getCurrentRoom());
   };
 
@@ -119,13 +120,19 @@ io.on("connection", (socket) => {
       }
 
       // if we're already in a lobby, leave it
-      if (gameLobby.room && socket.getCurrentRoom()) {
-        socket.leaveCurrentRoom();
+      if (socket.getCurrentRoom()) { socket.leaveCurrentRoom();}
+
+      let order = 0
+      // find the greatest turn order
+      if(gameLobby.players.length > 0) {
+        order = Math.max(...gameLobby.players.map(p => p.order))
+        // and add one
+        order ++;
       }
 
       // create a new player
       const player = await createPlayer({
-        turnOrder: gameLobby.players.length + 1,
+        turnOrder: order,
         lobby: gameLobby,
         name: playerName,
         spectator: isSpectator,
@@ -154,15 +161,21 @@ io.on("connection", (socket) => {
 
   // when player leaves
   socket.on("lobby:quit", async () => {
-    const room = socket.getCurrentRoom();
-    if (room) {
+    try{
+      // tell client to quit
+      socket.emit("success:lobby_quit");
+      // delete player
+      await deletePlayer(socket.playerId);
+      // notify room
+      socket.to(socket.getCurrentRoom()).emit("success:player_quit", socket.playerId);
       // leave the current room
       socket.leaveCurrentRoom();
-      // tell room
-      socket.to(room).emit("success:player_quit");
+      // remove playerId
+      socket.playerId = null;
+    } catch(e) {
+      console.log(e)
+      socket.emit("success:lobby_quit");
     }
-    // tell client
-    socket.emit("success:lobby_quit");
   });
 
   // update player's color
@@ -218,7 +231,12 @@ io.on("connection", (socket) => {
 
   // notify users upon disconnection
   socket.on("disconnect", async () => {
+
+
     console.log("SOCKET DISCONNECT");
+
+    // if a player leaves do a re-order
+
     // const matchingSockets = await io.in(socket.userID).allSockets()
     // const isDisconnected = matchingSockets.size === 0
     // if (isDisconnected) {

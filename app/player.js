@@ -29,10 +29,6 @@ export const updatePlayerColor = async (playerId, color) => {
   );
 };
 
-export const updatePlayerReady = async (playerId) => {
-  return await Player.findOneAndUpdate(
-    { _id: playerId },
-    { isReady: true },
-    { new: true }
-  );
-};
+export const deletePlayer = async (playerId) => {
+  return await Player.deleteOne({ _id: playerId });
+}
