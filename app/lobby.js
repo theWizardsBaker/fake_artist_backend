@@ -22,4 +22,6 @@ export const getGameLobby = async (gameId) => {
   return await Lobby.findRoom(gameId.toUpperCase());
 };
 
-export const updateColorSwatches = () => {};
+export const deleteGameLobby = async (gameLobby) => {
+  return await Lobby.deleteOne(gameLobby);
+};

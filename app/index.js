@@ -3,7 +3,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { connect } from "./database.js";
 import Category from "./models/category.js";
-import { getGameLobby, createGameLobby } from "./lobby.js";
+import { getGameLobby, createGameLobby, deleteGameLobby } from "./lobby.js";
 import {
   createPlayer,
   getPlayer,
@@ -65,12 +65,12 @@ app.get("/", async (req, res) => {
 // });
 
 io.use((socket, next) => {
+
   socket.getCurrentRoom = () => {
     return [...socket.rooms][0];
   };
 
   socket.leaveCurrentRoom = () => {
-    socket.playerId = null;
     return socket.leave(socket.getCurrentRoom());
   };
 
@@ -82,6 +82,7 @@ io.use((socket, next) => {
 
 // setup socket.io
 io.on("connection", (socket) => {
+
   socket.on("connect_error", (err) => {
     console.log(`connect_error due to ${err.message}`);
   });
@@ -141,9 +142,6 @@ io.on("connection", (socket) => {
       // add player to game
       gameLobby.players.push(player);
 
-      // save player to socket instance
-      socket.playerId = player._id;
-
       await gameLobby.save();
 
       // emit joined
@@ -160,18 +158,26 @@ io.on("connection", (socket) => {
   });
 
   // when player leaves
-  socket.on("lobby:quit", async () => {
+  socket.on("lobby:quit", async (playerId) => {
     try{
       // tell client to quit
       socket.emit("success:lobby_quit");
       // delete player
-      await deletePlayer(socket.playerId);
+      await deletePlayer(playerId);
+
+      const room = socket.getCurrentRoom()
       // notify room
-      socket.to(socket.getCurrentRoom()).emit("success:player_quit", socket.playerId);
+      socket.to(room).emit("success:player_quit", playerId);
       // leave the current room
       socket.leaveCurrentRoom();
-      // remove playerId
-      socket.playerId = null;
+
+      // cleanup
+      const gameLobby = await getGameLobby(room);
+
+      if(!gameLobby.players.length) {
+        deleteGameLobby(gameLobby);
+      }
+
     } catch(e) {
       console.log(e)
       socket.emit("success:lobby_quit");
@@ -179,10 +185,10 @@ io.on("connection", (socket) => {
   });
 
   // update player's color
-  socket.on("player:update", async (selectedColor) => {
+  socket.on("player:update", async (playerId, selectedColor) => {
     try {
       // update player's color
-      const player = await updatePlayerReady(socket.playerId);
+      const player = await updatePlayerReady(playerId);
       // respond to all users
       io.in(socket.getCurrentRoom()).emit("success:player_updated", player);
       // check game start:
@@ -212,7 +218,7 @@ io.on("connection", (socket) => {
   });
 
   // update player's color
-  socket.on("colors:update", async (selectedColor) => {
+  socket.on("colors:update", async (playerId, selectedColor) => {
     try {
       // find lobby
       const gameLobby = await getGameLobby(socket.getCurrentRoom());
@@ -221,7 +227,7 @@ io.on("connection", (socket) => {
         throw "color in use";
       }
       // update player's color
-      const player = await updatePlayerColor(socket.playerId, selectedColor);
+      const player = await updatePlayerColor(playerId, selectedColor);
       // respond to all users
       io.in(socket.getCurrentRoom()).emit("success:colors_updated", player);
     } catch (e) {
@@ -231,7 +237,6 @@ io.on("connection", (socket) => {
 
   // notify users upon disconnection
   socket.on("disconnect", async () => {
-
 
     console.log("SOCKET DISCONNECT");
 
