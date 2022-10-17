@@ -24,6 +24,12 @@ const LobbySchema = new Schema(
         default: 0,
         min: 0,
       },
+      turnNumber: {
+        type: Number,
+        required: true,
+        default: 0,
+        min: 0,
+      },
       category: {
         type: Schema.ObjectId,
         required: true,
@@ -54,10 +60,12 @@ const LobbySchema = new Schema(
   },
   {
     statics: {
-      async findRoom(roomId) {
-        return await this.findOne({ room: roomId, open: true }).populate(
-          "players"
-        );
+      async findRoom(roomId, isOpen = null) {
+        let params = { room: roomId };
+        if (isOpen != null) {
+          params.open = isOpen;
+        }
+        return await this.findOne(params).populate("players");
       },
 
       async getUniqueRoomId() {

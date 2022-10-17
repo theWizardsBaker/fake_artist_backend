@@ -12,6 +12,8 @@ import {
   deletePlayer,
 } from "./player.js";
 
+const MAX_PLAYERS = 12;
+
 // setup express
 const app = express();
 const httpServer = createServer(app);
@@ -100,7 +102,7 @@ io.on("connection", (socket) => {
   socket.on("lobby:find", async (lobbyId) => {
     try {
       // try to find lobby
-      const gameLobby = await getGameLobby(lobbyId);
+      const gameLobby = await getGameLobby(lobbyId, true);
       // emit joined
       socket.emit("success:lobby_found", gameLobby.room);
     } catch (e) {
@@ -112,7 +114,7 @@ io.on("connection", (socket) => {
   socket.on("lobby:join", async ({ lobby, playerName, isSpectator }) => {
     try {
       // make sure lobby exists
-      let gameLobby = await getGameLobby(lobby);
+      let gameLobby = await getGameLobby(lobby, true);
 
       if (!gameLobby) {
         throw lobby;
@@ -142,6 +144,12 @@ io.on("connection", (socket) => {
       // add player to game
       gameLobby.players.push(player);
 
+      // if the game lobby is full
+      if (gameLobby.players.length === gameLobby.colors.length) {
+        // close the game lobby for new players
+        gameLobby.open = false;
+      }
+
       await gameLobby.save();
 
       // emit joined
@@ -154,6 +162,31 @@ io.on("connection", (socket) => {
     } catch (e) {
       console.log(e);
       socket.emit("error:lobby_joined", `${lobby} does not exist`);
+    }
+  });
+
+  // rejoin
+  socket.on("lobby:rejoin", async (room) => {
+    try {
+      // find lobby
+      const gameLobby = await getGameLobby(room);
+      // if the user is in a lobby
+      // send the right signal
+      if (gameLobby) {
+        socket.join(gameLobby.room);
+        // remove the default room
+        socket.leaveCurrentRoom();
+        // notify game
+        if (gameLobby.game.inProgress) {
+          socket.emit("success:lobby_rejoin_game");
+        } else {
+          socket.emit("success:lobby_rejoin_lobby");
+        }
+      } else {
+        throw "";
+      }
+    } catch (e) {
+      socket.emit("error:lobby_rejoin");
     }
   });
 
@@ -174,7 +207,7 @@ io.on("connection", (socket) => {
       // cleanup
       const gameLobby = await getGameLobby(room);
 
-      if (!gameLobby.players.length) {
+      if (gameLobby && !gameLobby.players.length) {
         deleteGameLobby(gameLobby);
       }
     } catch (e) {
@@ -210,10 +243,54 @@ io.on("connection", (socket) => {
       gameLobby.open = false;
       // mark the game as inProgress
       gameLobby.game.inProgress = true;
+
+      await gameLobby.save();
+
+      // assign colors to any player who hasn't selected one
+      const playersWithoutColors = gameLobby.players.filter((p) => !p.color);
+
+      if (playersWithoutColors.length) {
+        // find all colors
+        const usedColors = [];
+        // filter out used colors
+        gameLobby.players.forEach((p) => {
+          if (p.color) {
+            usedColors.push(p.color);
+          }
+        });
+        // get available colors
+        const availableColors = gameLobby.colors.filter(
+          (c) => !usedColors.includes(c.color)
+        );
+        // assign colors to users without colors
+        await Promise.all(
+          playersWithoutColors.map((player) => {
+            player.color = availableColors.pop().color;
+            return player.save();
+          })
+        );
+        const updatedGameLobby = await getGameLobby(socket.getCurrentRoom());
+        io.in(socket.getCurrentRoom()).emit(
+          "success:players_updated",
+          updatedGameLobby.players
+        );
+      }
+
       // respond to all users
       io.in(socket.getCurrentRoom()).emit("success:game_started");
     } catch (e) {
-      socket.emit("error:colors_updated", e);
+      console.log(e);
+      socket.emit("error:game_start", e);
+    }
+  });
+
+  // get turn
+  socket.on("game:get_turn", async () => {
+    try {
+      const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
+      socket.emit("success:game_turn", gameLobby.game.turnNumber);
+    } catch (e) {
+      console.log("TURN NUMBER ERROR", e);
     }
   });
 

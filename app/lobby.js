@@ -18,8 +18,8 @@ export const createGameLobby = async (timeLimit = 0) => {
   return await lobby.save();
 };
 
-export const getGameLobby = async (gameId) => {
-  return await Lobby.findRoom(gameId.toUpperCase());
+export const getGameLobby = async (gameId, open) => {
+  return await Lobby.findRoom(gameId.toUpperCase(), open);
 };
 
 export const deleteGameLobby = async (gameLobby) => {
