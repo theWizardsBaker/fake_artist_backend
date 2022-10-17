@@ -31,4 +31,4 @@ export const updatePlayerColor = async (playerId, color) => {
 
 export const deletePlayer = async (playerId) => {
   return await Player.deleteOne({ _id: playerId });
-}
+};

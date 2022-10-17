@@ -65,7 +65,6 @@ app.get("/", async (req, res) => {
 // });
 
 io.use((socket, next) => {
-
   socket.getCurrentRoom = () => {
     return [...socket.rooms][0];
   };
@@ -82,7 +81,6 @@ io.use((socket, next) => {
 
 // setup socket.io
 io.on("connection", (socket) => {
-
   socket.on("connect_error", (err) => {
     console.log(`connect_error due to ${err.message}`);
   });
@@ -121,14 +119,16 @@ io.on("connection", (socket) => {
       }
 
       // if we're already in a lobby, leave it
-      if (socket.getCurrentRoom()) { socket.leaveCurrentRoom();}
+      if (socket.getCurrentRoom()) {
+        socket.leaveCurrentRoom();
+      }
 
-      let order = 0
+      let order = 0;
       // find the greatest turn order
-      if(gameLobby.players.length > 0) {
-        order = Math.max(...gameLobby.players.map(p => p.order))
+      if (gameLobby.players.length > 0) {
+        order = Math.max(...gameLobby.players.map((p) => p.order));
         // and add one
-        order ++;
+        order++;
       }
 
       // create a new player
@@ -159,13 +159,13 @@ io.on("connection", (socket) => {
 
   // when player leaves
   socket.on("lobby:quit", async (playerId) => {
-    try{
+    try {
       // tell client to quit
       socket.emit("success:lobby_quit");
       // delete player
       await deletePlayer(playerId);
 
-      const room = socket.getCurrentRoom()
+      const room = socket.getCurrentRoom();
       // notify room
       socket.to(room).emit("success:player_quit", playerId);
       // leave the current room
@@ -174,46 +174,12 @@ io.on("connection", (socket) => {
       // cleanup
       const gameLobby = await getGameLobby(room);
 
-      if(!gameLobby.players.length) {
+      if (!gameLobby.players.length) {
         deleteGameLobby(gameLobby);
       }
-
-    } catch(e) {
-      console.log(e)
-      socket.emit("success:lobby_quit");
-    }
-  });
-
-  // update player's color
-  socket.on("player:update", async (playerId, selectedColor) => {
-    try {
-      // update player's color
-      const player = await updatePlayerReady(playerId);
-      // respond to all users
-      io.in(socket.getCurrentRoom()).emit("success:player_updated", player);
-      // check game start:
-
-      // // check if all players are ready
-      // const gameLobby = await getGameLobby(socket.getCurrentRoom());
-      // const allPlayersAreReady = gameLobby.players.reduce((p) => p.isReady, true);
-      // // is all players are ready
-      // if(allPlayersAreReady){
-      //   // close game lobby to new players
-      //   gameLobby.open = false;
-      //   // make sure all players have a color
-      //   gameLobby.players.forEach((p) => {
-      //     if(!p.color){
-
-      //     }
-      //   })
-
-      //   await gameLobby.save();
-
-      // notify game start
-      // socket.emit("success:start_game");
-      // }
     } catch (e) {
-      socket.emit("error:colors_updated", e);
+      console.log(e);
+      socket.emit("success:lobby_quit");
     }
   });
 
@@ -235,9 +201,24 @@ io.on("connection", (socket) => {
     }
   });
 
+  // start game
+  socket.on("game:start", async () => {
+    try {
+      // find lobby
+      const gameLobby = await getGameLobby(socket.getCurrentRoom());
+      // close the game lobby for new players
+      gameLobby.open = false;
+      // mark the game as inProgress
+      gameLobby.game.inProgress = true;
+      // respond to all users
+      io.in(socket.getCurrentRoom()).emit("success:game_started");
+    } catch (e) {
+      socket.emit("error:colors_updated", e);
+    }
+  });
+
   // notify users upon disconnection
   socket.on("disconnect", async () => {
-
     console.log("SOCKET DISCONNECT");
 
     // if a player leaves do a re-order
