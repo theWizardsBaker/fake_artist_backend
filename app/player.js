@@ -12,7 +12,7 @@ export const createPlayer = async ({ lobby, name, spectator, turnOrder }) => {
   return await player.save();
 };
 
-export const getPlayer = async (playerId) => {
+export const getPlayerById = async (playerId) => {
   return await Player.findPlayer(playerId);
 };
 

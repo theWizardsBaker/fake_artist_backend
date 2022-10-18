@@ -1,16 +1,22 @@
 import Lobby from "./models/lobby.js";
 import Category from "./models/category.js";
+import Drawing from "./models/drawing.js";
 
 export const createGameLobby = async (timeLimit = 0) => {
   const roomId = await Lobby.getUniqueRoomId();
   const category = await Category.findRandomCategory();
   const colors = await Lobby.getColors();
+  const drawing = await new Drawing();
+
+  await drawing.save();
+
   // create lobby
   const lobby = new Lobby({
     room: roomId,
     game: {
       timeLimit: timeLimit,
       category: category,
+      drawing: drawing,
     },
     colors: colors.map((c) => ({ color: c[0], disabled: false })),
   });

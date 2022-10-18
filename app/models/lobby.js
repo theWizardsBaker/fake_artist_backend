@@ -22,6 +22,11 @@ const LobbySchema = new Schema(
         default: 0,
         min: 0,
       },
+      maxRounds: {
+        type: Number,
+        required: false,
+        default: 2,
+      },
       turnNumber: {
         type: Number,
         required: true,
@@ -36,6 +41,10 @@ const LobbySchema = new Schema(
       inProgress: {
         type: Boolean,
         default: false,
+      },
+      drawing: {
+        type: Schema.Types.ObjectId,
+        ref: "Drawing"
       },
     },
     colors: [
@@ -81,6 +90,14 @@ const LobbySchema = new Schema(
 
       async getColors() {
         return await readCSVFile("./data/colors.csv");
+      },
+    },
+    methods: {
+      async getDrawings() {
+        const allDrawings = await this.model("Lobby")
+          .findOne(this)
+          .populate('game.drawing');
+        return allDrawings.game.drawing;
       },
     },
   }

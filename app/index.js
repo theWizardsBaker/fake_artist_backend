@@ -2,17 +2,16 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { connect } from "./database.js";
+import { getDrawing } from "./drawing.js";
 import { loadCategories, getCategory } from "./category.js";
 import { getGameLobby, createGameLobby, deleteGameLobby } from "./lobby.js";
 import {
   createPlayer,
-  getPlayer,
+  getPlayerById,
   updatePlayerColor,
   findPlayerByColor,
   deletePlayer,
 } from "./player.js";
-
-const MAX_PLAYERS = 12;
 
 // setup express
 const app = express();
@@ -158,7 +157,7 @@ io.on("connection", (socket) => {
       socket.to(gameLobby.room).emit("success:player_joined", player);
 
       // join lobby
-      socket.join(gameLobby.room);
+      await socket.join(gameLobby.room);
     } catch (e) {
       console.log(e);
       socket.emit("error:lobby_joined", `${lobby} does not exist`);
@@ -173,12 +172,12 @@ io.on("connection", (socket) => {
       // if the user is in a lobby
       // send the right signal
       if (gameLobby) {
-        socket.join(gameLobby.room);
         // remove the default room
         socket.leaveCurrentRoom();
+        await socket.join(gameLobby.room);
         // notify game
         if (gameLobby.game.inProgress) {
-          socket.emit("success:lobby_rejoin_game");
+          socket.emit("success:lobby_rejoin_game", gameLobby.game);
         } else {
           socket.emit("success:lobby_rejoin_lobby");
         }
@@ -249,7 +248,7 @@ io.on("connection", (socket) => {
 
       hiddenArtist.hiddenArtist = true;
 
-      await hiddenArtist.save();
+      await hiddenArtist.save();      
 
       await gameLobby.save();
 
@@ -285,7 +284,11 @@ io.on("connection", (socket) => {
       }
 
       // respond to all users
-      io.in(socket.getCurrentRoom()).emit("success:game_started");
+      io.in(socket.getCurrentRoom()).emit("success:game_started", {
+       players: gameLobby.players.length,
+       timeLimit: gameLobby.game.timeLimit, 
+       maxRounds: gameLobby.game.maxRounds
+      });
     } catch (e) {
       console.log(e);
       socket.emit("error:game_start", e);
@@ -305,17 +308,54 @@ io.on("connection", (socket) => {
   // get turn
   socket.on("game:get_topic", async (playerId) => {
     try {
-      const player = await getPlayer(playerId);
+      const player = await getPlayerById(playerId);
+      console.log("PLAYER", player)
       const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
+      console.log("LOBBY", gameLobby)
       const category = await getCategory(gameLobby.game.category);
-      console.log(category);
+      console.log("CATEGORY", category)
       // remove the subject if the player is the hidden artist
       if (await player.isHiddenArtist()) {
         category.subject = "???";
       }
       socket.emit("success:game_topic", category);
     } catch (e) {
-      console.log("GAME TOPIC", e);
+      console.log("GAME TOPIC ERROR", e);
+    }
+  });
+
+  // get drawings
+  socket.on("game:get_drawings", async (drawingCount) => {
+    const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
+    // get all drawings
+    const drawings = gameLobby.getDrawings();
+    // send any missing drawings back to 
+    socket.emit('success:get_drawings', drawings.slice(drawingCount));
+  });
+
+  // set drawing
+  socket.on("game:set_drawing", async (newPath) => {
+    try {
+      console.log(socket.rooms, socket.id)
+      const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
+      const drawings = await gameLobby.getDrawings();
+      // add new path
+      drawings.paths.push(newPath);
+      // save drawing
+      await drawings.save();
+      // increment the turn
+      gameLobby.game.turnNumber += 1;
+      // increment the round if the turn counter
+      // has rolled over
+      if(gameLobby.game.turnNumber >= gameLobby.players.length){
+        gameLobby.game.turnNumber = 0;
+        gameLobby.game.roundNumber += 1;
+      }
+      gameLobby.save();
+      // notify the room
+      socket.to(gameLobby.room).emit('success:set_drawing', newPath);
+    } catch(e) {
+      console.log(e)
     }
   });
 

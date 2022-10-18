@@ -19,6 +19,7 @@ services:
       USERNAME: root
       PASSWORD: example
       DATABASE: fake-artist
+    restart: always
   mongo:
     container_name: mongo
     image: mongo
