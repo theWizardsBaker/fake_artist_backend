@@ -6,14 +6,6 @@ const CategorySchema = new Schema(
   {
     category: String,
     subject: String,
-    likeCount: {
-      type: Number,
-      default: 0,
-    },
-    dislikeCount: {
-      type: Number,
-      default: 0,
-    },
   },
   {
     statics: {
@@ -24,7 +16,7 @@ const CategorySchema = new Schema(
           // Get a random number
           const random = Math.floor(Math.random() * count);
           // find random category
-          return await this.findOne().skip(random).exec();
+          return await this.findOne().skip(random);
         } catch (e) {
           return new Error(`unable to find Random Category:\n\t${e}`);
         }
@@ -46,6 +38,10 @@ const CategorySchema = new Schema(
         } catch (e) {
           console.log(`Could not load categories: \n\t${e}`);
         }
+      },
+
+      async findCategory(categoryId) {
+        return await this.findOne(categoryId);
       },
     },
   }

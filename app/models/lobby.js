@@ -2,8 +2,6 @@ import mongoose from "mongoose";
 const { Schema } = mongoose;
 
 import randomstring from "randomstring";
-import Player from "./player.js";
-import Cateogry from "./category.js";
 import { readCSVFile } from "../utils/readFile.js";
 
 const LobbySchema = new Schema(
@@ -31,9 +29,9 @@ const LobbySchema = new Schema(
         min: 0,
       },
       category: {
-        type: Schema.ObjectId,
+        type: Schema.Types.ObjectId,
         required: true,
-        ref: Cateogry,
+        ref: "Cateogry",
       },
       inProgress: {
         type: Boolean,

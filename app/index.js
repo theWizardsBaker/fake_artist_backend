@@ -2,7 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { connect } from "./database.js";
-import Category from "./models/category.js";
+import { loadCategories, getCategory } from "./category.js";
 import { getGameLobby, createGameLobby, deleteGameLobby } from "./lobby.js";
 import {
   createPlayer,
@@ -30,7 +30,7 @@ const io = new Server(httpServer, {
 // // setup mongodb
 connect()
   // load categories from CSV file
-  .then(() => Category.loadCategories())
+  .then(() => loadCategories())
   // exit if connection fails
   .catch(() => {
     console.log("could not establish a connection. Exiting");
@@ -243,9 +243,17 @@ io.on("connection", (socket) => {
       gameLobby.open = false;
       // mark the game as inProgress
       gameLobby.game.inProgress = true;
+      // pick a hidden artist
+      let hiddenArtist =
+        gameLobby.players[Math.floor(Math.random() * gameLobby.players.length)];
+
+      hiddenArtist.hiddenArtist = true;
+
+      await hiddenArtist.save();
 
       await gameLobby.save();
 
+      // colors
       // assign colors to any player who hasn't selected one
       const playersWithoutColors = gameLobby.players.filter((p) => !p.color);
 
@@ -290,7 +298,24 @@ io.on("connection", (socket) => {
       const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
       socket.emit("success:game_turn", gameLobby.game.turnNumber);
     } catch (e) {
-      console.log("TURN NUMBER ERROR", e);
+      console.log("GAME TURN", e);
+    }
+  });
+
+  // get turn
+  socket.on("game:get_topic", async (playerId) => {
+    try {
+      const player = await getPlayer(playerId);
+      const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
+      const category = await getCategory(gameLobby.game.category);
+      console.log(category);
+      // remove the subject if the player is the hidden artist
+      if (await player.isHiddenArtist()) {
+        category.subject = "???";
+      }
+      socket.emit("success:game_topic", category);
+    } catch (e) {
+      console.log("GAME TOPIC", e);
     }
   });
 

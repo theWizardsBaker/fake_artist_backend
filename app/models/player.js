@@ -26,10 +26,11 @@ const PlayerSchema = new Schema(
       required: false,
       default: false,
     },
-    isArtist: {
+    hiddenArtist: {
       type: Boolean,
       required: false,
       default: false,
+      select: false,
     },
     hasVoted: {
       type: Boolean,
@@ -48,6 +49,14 @@ const PlayerSchema = new Schema(
     statics: {
       async findPlayer(playerId) {
         return await this.findOne({ _id: playerId });
+      },
+    },
+    methods: {
+      async isHiddenArtist() {
+        const isHiddenArtist = await this.model("Player")
+          .findOne(this)
+          .select("hiddenArtist");
+        return isHiddenArtist.hiddenArtist;
       },
     },
   }
