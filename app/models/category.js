@@ -4,7 +4,6 @@ const { Schema } = mongoose;
 
 const CategorySchema = new Schema(
   {
-    category: String,
     subject: String,
   },
   {
@@ -26,7 +25,7 @@ const CategorySchema = new Schema(
         console.log("reading categories");
         const categoryItems = await readCSVFile("./data/categories.csv");
         const categories = categoryItems.map(
-          (c) => new this({ category: c[0], subject: c[1] })
+          (c) => new this({ subject: c[0] })
         );
         try {
           // remove existing categories

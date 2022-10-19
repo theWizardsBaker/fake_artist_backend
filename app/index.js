@@ -2,7 +2,6 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { connect } from "./database.js";
-import { getDrawing } from "./drawing.js";
 import { loadCategories, getCategory } from "./category.js";
 import { getGameLobby, createGameLobby, deleteGameLobby } from "./lobby.js";
 import {
@@ -248,7 +247,7 @@ io.on("connection", (socket) => {
 
       hiddenArtist.hiddenArtist = true;
 
-      await hiddenArtist.save();      
+      await hiddenArtist.save();
 
       await gameLobby.save();
 
@@ -285,9 +284,9 @@ io.on("connection", (socket) => {
 
       // respond to all users
       io.in(socket.getCurrentRoom()).emit("success:game_started", {
-       players: gameLobby.players.length,
-       timeLimit: gameLobby.game.timeLimit, 
-       maxRounds: gameLobby.game.maxRounds
+        players: gameLobby.players.length,
+        timeLimit: gameLobby.game.timeLimit,
+        maxRounds: gameLobby.game.maxRounds,
       });
     } catch (e) {
       console.log(e);
@@ -309,16 +308,13 @@ io.on("connection", (socket) => {
   socket.on("game:get_topic", async (playerId) => {
     try {
       const player = await getPlayerById(playerId);
-      console.log("PLAYER", player)
       const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
-      console.log("LOBBY", gameLobby)
       const category = await getCategory(gameLobby.game.category);
-      console.log("CATEGORY", category)
       // remove the subject if the player is the hidden artist
-      if (await player.isHiddenArtist()) {
-        category.subject = "???";
-      }
-      socket.emit("success:game_topic", category);
+      const subject = (await player.isHiddenArtist())
+        ? "???"
+        : category.subject;
+      socket.emit("success:game_topic", subject);
     } catch (e) {
       console.log("GAME TOPIC ERROR", e);
     }
@@ -329,14 +325,13 @@ io.on("connection", (socket) => {
     const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
     // get all drawings
     const drawings = gameLobby.getDrawings();
-    // send any missing drawings back to 
-    socket.emit('success:get_drawings', drawings.slice(drawingCount));
+    // send any missing drawings back to
+    socket.emit("success:get_drawings", drawings.slice(drawingCount));
   });
 
   // set drawing
   socket.on("game:set_drawing", async (newPath) => {
     try {
-      console.log(socket.rooms, socket.id)
       const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
       const drawings = await gameLobby.getDrawings();
       // add new path
@@ -347,15 +342,16 @@ io.on("connection", (socket) => {
       gameLobby.game.turnNumber += 1;
       // increment the round if the turn counter
       // has rolled over
-      if(gameLobby.game.turnNumber >= gameLobby.players.length){
+      if (gameLobby.game.turnNumber >= gameLobby.players.length) {
         gameLobby.game.turnNumber = 0;
         gameLobby.game.roundNumber += 1;
       }
       gameLobby.save();
       // notify the room
-      socket.to(gameLobby.room).emit('success:set_drawing', newPath);
-    } catch(e) {
-      console.log(e)
+      socket.to(gameLobby.room).emit("success:set_drawing", newPath);
+    } catch (e) {
+      console.log(e);
+      socket.emit("error:set_drawing");
     }
   });
 

@@ -44,7 +44,7 @@ const LobbySchema = new Schema(
       },
       drawing: {
         type: Schema.Types.ObjectId,
-        ref: "Drawing"
+        ref: "Drawing",
       },
     },
     colors: [
@@ -96,7 +96,7 @@ const LobbySchema = new Schema(
       async getDrawings() {
         const allDrawings = await this.model("Lobby")
           .findOne(this)
-          .populate('game.drawing');
+          .populate("game.drawing");
         return allDrawings.game.drawing;
       },
     },
