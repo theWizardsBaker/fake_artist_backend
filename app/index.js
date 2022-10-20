@@ -294,6 +294,21 @@ io.on("connection", (socket) => {
     }
   });
 
+  // quit game
+  socket.on("game:quit", async () => {
+    try {
+      // cleanup
+      const room = socket.getCurrentRoom();
+      const gameLobby = await getGameLobby(room);
+      // remove lobby and be extention game and players
+      await deleteLobby(gameLobby);
+      // notify room
+      socket.to(room).emit("success:game_quit");
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
   // get turn
   socket.on("game:get_turn", async () => {
     try {
@@ -321,12 +336,25 @@ io.on("connection", (socket) => {
   });
 
   // get drawings
-  socket.on("game:get_drawings", async (drawingCount) => {
-    const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
-    // get all drawings
-    const drawings = gameLobby.getDrawings();
-    // send any missing drawings back to
-    socket.emit("success:get_drawings", drawings.slice(drawingCount));
+  socket.on("game:get_all_drawings", async (paths) => {
+    try {
+      const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
+      // get all drawings
+      const drawings = await gameLobby.getDrawings();
+      console.log(gameLobby, drawings);
+      if (paths) {
+        const lastNDrawings = paths - drawings.length;
+        // send any missing drawings back to
+        socket.emit(
+          "success:get_all_drawings",
+          drawings.paths.slice(lastNDrawings)
+        );
+      } else {
+        socket.emit("success:get_all_drawings", drawings.paths);
+      }
+    } catch (e) {
+      console.log(e);
+    }
   });
 
   // set drawing

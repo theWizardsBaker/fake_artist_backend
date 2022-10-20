@@ -4,6 +4,9 @@ const { Schema } = mongoose;
 import randomstring from "randomstring";
 import { readCSVFile } from "../utils/readFile.js";
 
+import Player from "./player.js";
+import Drawing from "./drawing.js";
+
 const LobbySchema = new Schema(
   {
     room: {
@@ -102,5 +105,10 @@ const LobbySchema = new Schema(
     },
   }
 );
+
+LobbySchema.pre("deleteOne", { document: true }, () => {
+  Player.deleteMany({ lobby: this._id }).exec();
+  Drawing.deleteOne(this.game.drawing).exec();
+});
 
 export default mongoose.model("Lobby", LobbySchema);
