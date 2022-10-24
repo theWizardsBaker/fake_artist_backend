@@ -12,23 +12,41 @@ export const createPlayer = async ({ lobby, name, spectator, turnOrder }) => {
   return await player.save();
 };
 
-export const getAllPlayers = async () => {
-  return await Player.find();
+export const getAllPlayers = async (lobby) => {
+  if (lobby) {
+    return await Player.find({ lobby: lobby });
+  } else {
+    return await Player.find();
+  }
 };
 
 export const getPlayerById = async (playerId) => {
   return await Player.findPlayer(playerId);
 };
 
-export const findPlayerByColor = async (lobby, color) => {
-  console.log(lobby, color);
+export const getPlayerByColor = async (lobby, color) => {
   return await Player.findOne({ lobby: lobby, color: color });
 };
 
-export const updatePlayerColor = async (playerId, color) => {
+export const getHiddenArtist = async (lobby) => {
+  return await Player.findOne({
+    lobby: lobby,
+    hiddenArtist: true,
+  });
+};
+
+export const updatePlayerColor = async (player, color) => {
   return await Player.findOneAndUpdate(
-    { _id: playerId },
+    { _id: player },
     { color: color },
+    { new: true }
+  );
+};
+
+export const updatePlayerVote = async (player, votePlayerId) => {
+  return await Player.findOneAndUpdate(
+    { _id: player },
+    { vote: votePlayerId },
     { new: true }
   );
 };

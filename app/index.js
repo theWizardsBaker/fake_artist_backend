@@ -7,9 +7,12 @@ import { getGameLobby, createGameLobby, deleteGameLobby } from "./lobby.js";
 import {
   createPlayer,
   getPlayerById,
+  updatePlayerVote,
   updatePlayerColor,
-  findPlayerByColor,
+  getPlayerByColor,
+  getHiddenArtist,
   deletePlayer,
+  getAllPlayers,
 } from "./player.js";
 
 // setup express
@@ -206,7 +209,7 @@ io.on("connection", (socket) => {
       const gameLobby = await getGameLobby(room);
 
       if (gameLobby && !gameLobby.players.length) {
-        deleteGameLobby(gameLobby);
+        await deleteGameLobby(gameLobby);
       }
     } catch (e) {
       console.log(e);
@@ -220,11 +223,12 @@ io.on("connection", (socket) => {
       // find lobby
       const gameLobby = await getGameLobby(socket.getCurrentRoom());
       // make sure this color is not already selected
-      if (await findPlayerByColor(gameLobby, selectedColor)) {
+      if (await getPlayerByColor(gameLobby, selectedColor)) {
         throw "color in use";
       }
       // update player's color
-      const player = await updatePlayerColor(playerId, selectedColor);
+      let player = await getPlayerById(playerId);
+      player = await updatePlayerColor(player, selectedColor);
       // respond to all users
       io.in(socket.getCurrentRoom()).emit("success:colors_updated", player);
     } catch (e) {
@@ -300,16 +304,16 @@ io.on("connection", (socket) => {
       // cleanup
       const room = socket.getCurrentRoom();
       const gameLobby = await getGameLobby(room);
-      // remove lobby and be extention game and players
-      await deleteLobby(gameLobby);
       // notify room
-      socket.to(room).emit("success:game_quit");
+      io.in(room).emit("success:game_quit");
+      // remove lobby and be extention game and players
+      await deleteGameLobby(gameLobby);
       // force all users to leave room
-      io.sockets.clients(room).forEach((player) => {
-        player.leave(room);
-      });
+      // io.sockets.clients(room).forEach((player) => {
+      //   player.leave(room);
+      // });
     } catch (e) {
-      console.log(e);
+      console.log("BOFT!!!!!!", e);
     }
   });
 
@@ -345,7 +349,6 @@ io.on("connection", (socket) => {
       const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
       // get all drawings
       const drawings = await gameLobby.getDrawings();
-      console.log(gameLobby, drawings);
       if (paths) {
         const lastNDrawings = paths - drawings.length;
         // send any missing drawings back to
@@ -384,6 +387,65 @@ io.on("connection", (socket) => {
     } catch (e) {
       console.log(e);
       socket.emit("error:set_drawing");
+    }
+  });
+
+  // cast vote
+  socket.on("game:vote", async (playerId, voteForId) => {
+    try {
+      let player = await getPlayerById(playerId);
+      // update vote
+      player = await updatePlayerVote(player, voteForId);
+      // notify sender
+      socket.emit("success:voted", voteForId);
+    } catch (e) {
+      console.log(e);
+      socket.emit("error:voted");
+    }
+  });
+
+  // check vote
+  socket.on("game:voted", async (playerId) => {
+    try {
+      const player = await getPlayerById(playerId);
+      console.log("PLAYER HS VOTED", player, !!player.vote);
+      if (!!player.vote) {
+        // notify sender
+        socket.emit("success:voted", player.vote);
+      }
+    } catch (e) {
+      console.log("VOTE ERROR", e);
+    }
+  });
+
+  // check voting
+  socket.on("game:voting", async () => {
+    try {
+      // check if all players have voted
+      const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
+      const allVotes = await getAllPlayers(gameLobby);
+
+      // if all players have voted, notify lobby
+      if (gameLobby.players.length === allVotes.filter((p) => p.vote).length) {
+        // get the hidden artist
+        const hiddenArtist = await getHiddenArtist(gameLobby);
+        // list of votes by player
+        let votesByPlayer = {};
+        // each voter
+        await allVotes.forEach(async (p) => {
+          // create array of players who voted for another player
+          (votesByPlayer[p.vote] || (votesByPlayer[p.vote] = [])).push(p._id);
+        });
+        // notify room
+        socket
+          .to(gameLobby.room)
+          .emit("success:voting_complete", {
+            hiddenArtist: hiddenArtist._id,
+            votes: votesByPlayer,
+          });
+      }
+    } catch (e) {
+      console.log("VOTE ERROR", e);
     }
   });
 
