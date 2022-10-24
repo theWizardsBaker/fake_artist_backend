@@ -304,6 +304,10 @@ io.on("connection", (socket) => {
       await deleteLobby(gameLobby);
       // notify room
       socket.to(room).emit("success:game_quit");
+      // force all users to leave room
+      io.sockets.clients(room).forEach((player) => {
+        player.leave(room);
+      });
     } catch (e) {
       console.log(e);
     }

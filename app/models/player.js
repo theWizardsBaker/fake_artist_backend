@@ -42,6 +42,11 @@ const PlayerSchema = new Schema(
       required: false,
       default: false,
     },
+    voted: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     voters: [String],
     createdAt: { type: Date, expires: 3600, default: Date.now, select: false },
   },
