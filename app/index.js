@@ -43,7 +43,6 @@ app.get("/", async (req, res) => {
   res.send("Server is ready to accept requests");
 });
 
-// find existing user
 // io.use(async (socket, next) => {
 //   const sessionID = socket.handshake.auth.sessionID;
 //   if (sessionID) {
@@ -89,9 +88,9 @@ io.on("connection", (socket) => {
   });
 
   // create a new lobby
-  socket.on("lobby:create", async (timeLimit) => {
+  socket.on("lobby:create", async ({ maxRounds, timeLimit }) => {
     try {
-      const gameLobby = await createGameLobby(timeLimit);
+      const gameLobby = await createGameLobby(maxRounds, timeLimit);
       // emit joined
       socket.emit("success:lobby_created", gameLobby.room);
     } catch (e) {
@@ -437,12 +436,10 @@ io.on("connection", (socket) => {
           (votesByPlayer[p.vote] || (votesByPlayer[p.vote] = [])).push(p._id);
         });
         // notify room
-        socket
-          .to(gameLobby.room)
-          .emit("success:voting_complete", {
-            hiddenArtist: hiddenArtist._id,
-            votes: votesByPlayer,
-          });
+        socket.to(gameLobby.room).emit("success:voting_complete", {
+          hiddenArtist: hiddenArtist._id,
+          votes: votesByPlayer,
+        });
       }
     } catch (e) {
       console.log("VOTE ERROR", e);
