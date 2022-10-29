@@ -22,7 +22,7 @@ const httpServer = createServer(app);
 // setup socket.io
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: '*',
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -137,8 +137,24 @@ io.on("connection", (socket) => {
       // join lobby
       await socket.join(gameLobby.room);
     } catch (e) {
-      console.log(e);
       socket.emit("error:lobby_joined", `${lobby} does not exist`);
+    }
+  });
+
+  // get players
+  socket.on("lobby:fetch_players", async (lobby) => {
+    try {
+      // make sure lobby exists
+      let gameLobby = await getGameLobby(lobby, true);
+
+      if (!gameLobby) {
+        throw lobby;
+      }
+
+      socket.emit("success:fetch_players", { players: gameLobby.players, colors: gameLobby.colors });
+
+    } catch (e) {
+      socket.emit("error:fetch_players", `${lobby} does not exist`);
     }
   });
 
@@ -289,7 +305,7 @@ io.on("connection", (socket) => {
       //   player.leave(room);
       // });
     } catch (e) {
-      console.log("BOFT!!!!!!", e);
+      console.log("QUIT GAME", e);
     }
   });
 
@@ -380,11 +396,40 @@ io.on("connection", (socket) => {
     }
   });
 
+  // get all votes
+  socket.on("game:get_votes", async (playerId, voteForId) => {
+    try {
+      // check if all players have voted
+      const gameLobby = await getGameLobby(socket.getCurrentRoom(), false);
+      const allVotes = await getAllPlayers(gameLobby);
+
+      // if all players have voted, notify lobby
+      if (gameLobby.players.length === allVotes.filter((p) => p.vote).length) {
+        // get the hidden artist
+        const hiddenArtist = await getHiddenArtist(gameLobby);
+        // list of votes by player
+        let votesByPlayer = {};
+        // each voter
+        await allVotes.forEach(async (p) => {
+          // create array of players who voted for another player
+          (votesByPlayer[p.vote] || (votesByPlayer[p.vote] = [])).push(p._id);
+        });
+        // notify client
+        socket.emit("success:voting_complete", {
+          hiddenArtist: hiddenArtist._id,
+          votes: votesByPlayer,
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      socket.emit("error:get_votes");
+    }
+  });
+
   // check vote
   socket.on("game:voted", async (playerId) => {
     try {
       const player = await getPlayerById(playerId);
-      console.log("PLAYER HS VOTED", player, !!player.vote);
       if (!!player.vote) {
         // notify sender
         socket.emit("success:voted", player.vote);
