@@ -1,217 +1,13 @@
-import express from "express";
-import { createServer } from "http";
-import { Server } from "socket.io";
-import { connect } from "./database.js";
-import { loadCategories, getCategory } from "./category.js";
-import { getGameLobby, createGameLobby, deleteGameLobby } from "./lobby.js";
+import { getGameLobby, deleteGameLobby } from "./lobby.js";
+import { getCategory } from "./category.js";
 import {
-  createPlayer,
   getPlayerById,
   updatePlayerVote,
-  updatePlayerColor,
-  getPlayerByColor,
   getHiddenArtist,
-  deletePlayer,
   getAllPlayers,
 } from "./player.js";
 
-// setup express
-const app = express();
-const httpServer = createServer(app);
-
-// setup socket.io
-const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.FRONTEND_URL,
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
-
-// // setup mongodb
-connect()
-  // load categories from CSV file
-  .then(() => loadCategories())
-  // exit if connection fails
-  .catch(() => {
-    console.log("could not establish a connection. Exiting");
-    process.exit(0);
-  });
-
-// basic landing page
-app.get("/", async (req, res) => {
-  res.send("Server is ready to accept requests");
-});
-
-io.use((socket, next) => {
-  socket.getCurrentRoom = () => {
-    return [...socket.rooms][0];
-  };
-
-  socket.leaveCurrentRoom = () => {
-    return socket.leave(socket.getCurrentRoom());
-  };
-
-  // check if in room
-  // check that game exists
-
-  next();
-});
-
-// setup socket.io
-io.on("connection", (socket) => {
-  socket.on("connect_error", (err) => {
-    console.log(`connect_error due to ${err.message}`);
-  });
-
-  // create a new lobby
-  socket.on("lobby:create", async ({ maxRounds, timeLimit }) => {
-    try {
-      const gameLobby = await createGameLobby(maxRounds, timeLimit);
-      // emit joined
-      socket.emit("success:lobby_created", gameLobby.room);
-    } catch (e) {
-      socket.emit("error:lobby_created", e);
-    }
-  });
-
-  // find lobby
-  socket.on("lobby:find", async (lobbyId) => {
-    try {
-      // try to find lobby
-      const gameLobby = await getGameLobby(lobbyId, true);
-      // emit joined
-      socket.emit("success:lobby_found", gameLobby.room);
-    } catch (e) {
-      socket.emit("error:lobby_found", `${lobbyId} does not exist`);
-    }
-  });
-
-  // join lobby
-  socket.on("lobby:join", async ({ lobby, playerName, isSpectator }) => {
-    try {
-      // make sure lobby exists
-      let gameLobby = await getGameLobby(lobby, true);
-
-      if (!gameLobby) {
-        throw lobby;
-      }
-
-      // if we're already in a lobby, leave it
-      if (socket.getCurrentRoom()) {
-        socket.leaveCurrentRoom();
-      }
-
-      let order = 0;
-      // find the greatest turn order
-      if (gameLobby.players.length > 0) {
-        order = Math.max(...gameLobby.players.map((p) => p.order));
-        // and add one
-        order++;
-      }
-
-      // create a new player
-      const player = await createPlayer({
-        turnOrder: order,
-        lobby: gameLobby,
-        name: playerName,
-        spectator: isSpectator,
-      });
-
-      // add player to game
-      gameLobby.players.push(player);
-
-      // if the game lobby is full
-      if (gameLobby.players.length === gameLobby.colors.length) {
-        // close the game lobby for new players
-        gameLobby.open = false;
-      }
-
-      await gameLobby.save();
-
-      // emit joined
-      socket.emit("success:lobby_joined", { gameLobby, playerId: player._id });
-      // notify the rest of the room
-      socket.to(gameLobby.room).emit("success:player_joined", player);
-
-      // join lobby
-      await socket.join(gameLobby.room);
-    } catch (e) {
-      console.log(e);
-      socket.emit("error:lobby_joined", `${lobby} does not exist`);
-    }
-  });
-
-  // rejoin
-  socket.on("lobby:rejoin", async (room) => {
-    try {
-      // find lobby
-      const gameLobby = await getGameLobby(room);
-      // if the user is in a lobby
-      // send the right signal
-      if (gameLobby) {
-        // remove the default room
-        socket.leaveCurrentRoom();
-        await socket.join(gameLobby.room);
-        // notify game
-        if (gameLobby.game.inProgress) {
-          socket.emit("success:lobby_rejoin_game", gameLobby.game);
-        } else {
-          socket.emit("success:lobby_rejoin_lobby");
-        }
-      } else {
-        throw "";
-      }
-    } catch (e) {
-      socket.emit("error:lobby_rejoin");
-    }
-  });
-
-  // when player leaves
-  socket.on("lobby:quit", async (playerId) => {
-    try {
-      // tell client to quit
-      socket.emit("success:lobby_quit");
-      // delete player
-      await deletePlayer(playerId);
-
-      const room = socket.getCurrentRoom();
-      // notify room
-      socket.to(room).emit("success:player_quit", playerId);
-      // leave the current room
-      socket.leaveCurrentRoom();
-
-      // cleanup
-      const gameLobby = await getGameLobby(room);
-
-      if (gameLobby && !gameLobby.players.length) {
-        await deleteGameLobby(gameLobby);
-      }
-    } catch (e) {
-      console.log(e);
-      socket.emit("success:lobby_quit");
-    }
-  });
-
-  // update player's color
-  socket.on("colors:update", async (playerId, selectedColor) => {
-    try {
-      // find lobby
-      const gameLobby = await getGameLobby(socket.getCurrentRoom());
-      // make sure this color is not already selected
-      if (await getPlayerByColor(gameLobby, selectedColor)) {
-        throw "color in use";
-      }
-      // update player's color
-      let player = await getPlayerById(playerId);
-      player = await updatePlayerColor(player, selectedColor);
-      // respond to all users
-      io.in(socket.getCurrentRoom()).emit("success:colors_updated", player);
-    } catch (e) {
-      socket.emit("error:colors_updated", e);
-    }
-  });
-
+export const gameSocket = (io, socket) => {
   // start game
   socket.on("game:start", async () => {
     try {
@@ -289,7 +85,7 @@ io.on("connection", (socket) => {
       //   player.leave(room);
       // });
     } catch (e) {
-      console.log("BOFT!!!!!!", e);
+      console.log("QUIT GAME ERROR ", e);
     }
   });
 
@@ -422,6 +218,4 @@ io.on("connection", (socket) => {
       console.log("VOTE ERROR", e);
     }
   });
-});
-
-httpServer.listen(process.env.PORT);
+};

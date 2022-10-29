@@ -10,15 +10,15 @@ services:
     networks:
       - mongo-net
     ports:
-      - 3000:3000
+      - ${PORT}:${PORT}
     volumes:
       - ./app:/var/www/http/app
     environment:
-      PORT: 3000
-      FRONTEND_URL: "http://localhost:5173"
-      USERNAME: root
-      PASSWORD: example
-      DATABASE: fake-artist
+      PORT: ${PORT}
+      FRONTEND_URL: ${FRONTEND_URL}
+      USERNAME: ${MONGO_USER}
+      PASSWORD: ${MONGO_PASSWORD}
+      DATABASE: ${MONGO_DB}
     restart: always
   mongo:
     container_name: mongo
@@ -27,8 +27,8 @@ services:
     networks:
       - mongo-net
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-      MONGO_INITDB_DATABASE: fake-artist
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
 networks:
   mongo-net:
