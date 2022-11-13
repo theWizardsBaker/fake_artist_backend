@@ -2,7 +2,6 @@ version: "3.9"
 services:
   backend:
     container_name: backend
-    command: "dev"
     build:
       context: .
     depends_on:
@@ -20,6 +19,7 @@ services:
       PASSWORD: ${MONGO_PASSWORD}
       DATABASE: ${MONGO_DB}
     restart: always
+    command: start
   mongo:
     container_name: mongo
     image: mongo

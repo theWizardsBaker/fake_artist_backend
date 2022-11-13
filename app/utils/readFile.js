@@ -1,6 +1,11 @@
 import { createReadStream } from "fs";
 import { parse } from "fast-csv";
 import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export const readCSVFile = async (file, headers = false) => {
   return new Promise((resolve, reject) => {

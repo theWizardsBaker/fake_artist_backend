@@ -33,7 +33,8 @@ connect()
   // load categories from CSV file
   .then(() => loadCategories())
   // exit if connection fails
-  .catch(() => {
+  .catch((e) => {
+    console.log("ERROR:", e)
     console.log("could not establish a connection. Exiting");
     process.exit(0);
   });
