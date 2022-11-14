@@ -6,9 +6,16 @@ WORKDIR /var/www/build
 COPY package.json yarn.lock ./
 RUN yarn install
 
-FROM base
+FROM base as dev 
 WORKDIR /var/www/http
 COPY . .
 COPY --from=deps /var/www/build/node_modules ./node_modules/
 ENTRYPOINT ["yarn"]
 CMD ["dev"]
+
+FROM base as prod 
+WORKDIR /var/www/http
+COPY . .
+COPY --from=deps /var/www/build/node_modules ./node_modules/
+ENTRYPOINT ["yarn"]
+CMD ["start"]
