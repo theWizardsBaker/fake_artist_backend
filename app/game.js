@@ -19,7 +19,7 @@ export const gameSocket = (io, socket) => {
       gameLobby.game.inProgress = true;
       // pick a hidden artist
       let hiddenArtist =
-        gameLobby.players[Math.floor(Math.random() * gameLobby.players.length)];
+        gameLobby.players[Math.floor(Math.random() * (gameLobby.players.length - 1))];
 
       hiddenArtist.hiddenArtist = true;
 

@@ -26,6 +26,8 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"],
     credentials: true,
   },
+  transports: ['websocket', 'polling'],
+  allowUpgrades: true,
 });
 
 // // setup mongodb
