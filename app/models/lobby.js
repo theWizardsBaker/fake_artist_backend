@@ -80,11 +80,15 @@ const LobbySchema = new Schema(
 
       async getUniqueRoomId() {
         const roomId = randomstring
-          .generate({ length: 5, readable: true })
-          .toUpperCase();
+          .generate({
+            length: 5,
+            readable: true,
+            capitalization: 'uppercase'
+          })
+          .replace(/[L|I]/g, "1")
         // check that the room does not already exist
         if (await this.exists({ room: roomId })) {
-          // keep trying to find a unique key (should almost never happen)
+          // keep trying to find a unique key (should never happen)
           return this.getUniqueRoomId();
         } else {
           return roomId;
