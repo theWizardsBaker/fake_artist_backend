@@ -182,4 +182,34 @@ export const lobbySocket = (io, socket) => {
       socket.emit("error:colors_updated", e);
     }
   });
+
+  // create a new game lobby for a lobby that wants to play again
+  socket.on("lobby:new", async (lobbyId) => {
+    try {
+      // get current game lobby
+      const currentGameLobby = await getGameLobby(lobbyId, true);
+      if(currentGameLobby.nextRoom){
+        // don't create another new lobby. if it exists, exit
+        return true;
+      }
+      // create new lobby with current lobby's settings
+      const newGameLobby = await createGameLobby(currentGameLobby.maxRounds, currentGameLobby.timeLimit);
+      // notify room of new game lobby
+      io.in(currentGameLobby.room).emit("success:lobby_new", newGameLobby.room);
+    } catch (e) {
+      socket.emit("error:lobby_new", e);
+    }
+  })
+
+  // create a new game lobby for a lobby that wants to play again
+  socket.on("lobby:get_new", async (lobbyId) => {
+    try {
+      // get current game lobby
+      const currentGameLobby = await getGameLobby(lobbyId, true);
+      // notify room of new game lobby
+      socket.emit("success:lobby_get_new", currentGameLobby.nextRoom);
+    } catch (e) {
+      socket.emit("error:lobby_get_new", e);
+    }
+  })
 };

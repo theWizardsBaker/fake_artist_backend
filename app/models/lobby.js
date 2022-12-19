@@ -17,6 +17,11 @@ const LobbySchema = new Schema(
         unique: true,
       },
     },
+    nextRoom: {
+      type: String,
+      trim: true,
+      required: false,
+    },
     game: {
       timeLimit: Number,
       roundNumber: {

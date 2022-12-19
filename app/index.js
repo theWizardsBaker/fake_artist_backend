@@ -212,6 +212,40 @@ io.on("connection", (socket) => {
     }
   });
 
+  // create a new game lobby for a lobby that wants to play again
+  socket.on("lobby:next", async (lobbyId) => {
+    try {
+      // get current game lobby
+      const currentGameLobby = await getGameLobby(lobbyId);
+      if(currentGameLobby.nextRoom){
+        // don't create another new lobby. if it exists, exit
+        return true;
+      }
+      // create new lobby with current lobby's settings
+      const newGameLobby = await createGameLobby(currentGameLobby.maxRounds, currentGameLobby.timeLimit);
+      currentGameLobby.nextRoom = newGameLobby.room
+      await currentGameLobby.save()
+      // notify room of new game lobby
+      io.in(currentGameLobby.room).emit("success:lobby_next", currentGameLobby.nextRoom);
+    } catch (e) {
+      socket.emit("error:lobby_next", e);
+    }
+  })
+
+  // get the next game lobby if players want to play again
+  socket.on("lobby:get_next", async (lobbyId) => {
+    try {
+      // get current game lobby
+      const currentGameLobby = await getGameLobby(lobbyId);
+      if(currentGameLobby.nextRoom){
+        // notify room of new game lobby
+        socket.emit("success:lobby_next", currentGameLobby.nextRoom);
+      }
+    } catch (e) {
+      socket.emit("error:lobby_next", e);
+    }
+  })
+
   // update player's color
   socket.on("colors:update", async (playerId, selectedColor) => {
     try {
