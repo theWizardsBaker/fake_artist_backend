@@ -222,7 +222,7 @@ io.on("connection", (socket) => {
         return true;
       }
       // create new lobby with current lobby's settings
-      const newGameLobby = await createGameLobby(currentGameLobby.maxRounds, currentGameLobby.timeLimit);
+      const newGameLobby = await createGameLobby(currentGameLobby.game.maxRounds, currentGameLobby.game.timeLimit);
       currentGameLobby.nextRoom = newGameLobby.room
       await currentGameLobby.save()
       // notify room of new game lobby
