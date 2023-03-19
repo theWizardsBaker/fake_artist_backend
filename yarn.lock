@@ -1436,6 +1436,11 @@ finalhandler@1.2.0:
     statuses "2.0.1"
     unpipe "~1.0.0"
 
+fisher-yates-shuffle@^0.2.0:
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/fisher-yates-shuffle/-/fisher-yates-shuffle-0.2.0.tgz#10b94aff65e35e2cd5f2dbf79392f0b19e3a40e5"
+  integrity sha512-kmdTv7FIdn7iLxQjVfXmtij/lZhO2glPuv5ZxrhtsR3yiYeeJ0o8SC4y0NAwECNoH4FbYJRlY/urXcYZIw0SnA==
+
 for-in@^1.0.1, for-in@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/for-in/-/for-in-1.0.2.tgz#81068d295a8142ec0ac726c6e2200c30fb6d5e80"

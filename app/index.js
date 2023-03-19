@@ -1,4 +1,5 @@
 import express from "express";
+import shuffle from "fisher-yates-shuffle";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { connect } from "./database.js";
@@ -284,40 +285,34 @@ io.on("connection", (socket) => {
 
       await gameLobby.save();
 
-      // colors
-      // assign colors to any player who hasn't selected one
-      const playersWithoutColors = gameLobby.players.filter((p) => !p.color);
+      // player order
+      let randomOrder = shuffle([...Array(gameLobby.players.length).keys()])
 
-      if (playersWithoutColors.length) {
-        // find all colors
-        const usedColors = [];
-        // filter out used colors
-        gameLobby.players.forEach((p) => {
-          if (p.color) {
-            usedColors.push(p.color);
-          }
-        });
-        // get available colors
-        const availableColors = gameLobby.colors.filter(
-          (c) => !usedColors.includes(c.color)
-        );
-        // assign colors to users without colors
-        await Promise.all(
-          playersWithoutColors.map((player) => {
+      // find all colors
+      const usedColors = (gameLobby.players.map(p => p.color)).filter(c => !!c)
+
+      // get available colors
+      const availableColors = gameLobby.colors.filter(
+        (c) => !usedColors.includes(c.color)
+      );
+
+      // assign colors to users without colors
+      // assign order to players
+      await Promise.all(
+        gameLobby.players.map((player) => {
+          if(!player.color){
             player.color = availableColors.pop().color;
-            return player.save();
-          })
-        );
-        const updatedGameLobby = await getGameLobby(socket.getCurrentRoom());
-        io.in(socket.getCurrentRoom()).emit(
-          "success:players_updated",
-          updatedGameLobby.players
-        );
-      }
+          }
+          player.order = randomOrder.pop()
+          return player.save();
+        })
+      );
+
+      const updatedGameLobby = await getGameLobby(socket.getCurrentRoom());
 
       // respond to all users
       io.in(socket.getCurrentRoom()).emit("success:game_started", {
-        players: gameLobby.players.length,
+        players: updatedGameLobby.players,
         timeLimit: gameLobby.game.timeLimit,
         maxRounds: gameLobby.game.maxRounds,
       });
