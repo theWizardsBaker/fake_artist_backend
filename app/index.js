@@ -303,8 +303,7 @@ io.on("connection", (socket) => {
           if(!player.color){
             player.color = availableColors.pop().color;
           }
-          // our random order array begins at 1
-          player.order = randomOrder.pop() - 1
+          player.order = randomOrder.pop()
           return player.save();
         })
       );
@@ -313,7 +312,7 @@ io.on("connection", (socket) => {
 
       // respond to all users
       io.in(socket.getCurrentRoom()).emit("success:game_started", {
-        players: updatedGameLobby.players.length,
+        players: updatedGameLobby.players,
         timeLimit: gameLobby.game.timeLimit,
         maxRounds: gameLobby.game.maxRounds,
       });
